@@ -1,79 +1,67 @@
 import 'package:flutter/material.dart';
 
-void main() {
-  runApp(const MyApp());
-}
+// =============== COMPONENTES/Widgets ===============
+class Header extends StatelessWidget {
+  final String title;
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  const Header({super.key, required this.title});
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.black,
-          primary: Colors.black,
-          onPrimary: Colors.white,
-          onPrimaryContainer: Colors.amber,
-        ),
-        textTheme: const TextTheme(
-          headlineMedium: TextStyle(color: Colors.amber, fontSize: 24),
-        ),
-      ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+    return Text(
+      title,
+      style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
+class CustomButton extends StatelessWidget {
+  final String text;
+  final VoidCallback onPressed;
 
-  final String title;
-
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-
-  void _incrementCounter() {
-    setState(() {
-      _counter++;
-    });
-  }
+  const CustomButton({super.key, required this.text, required this.onPressed});
 
   @override
   Widget build(BuildContext context) {
+    return ElevatedButton(onPressed: onPressed, child: Text(text));
+  }
+}
+
+// =============== PÁGINA PRINCIPAL ===============
+class HomePage extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        title: Text(widget.title, style: const TextStyle(color: Colors.white)),
-      ),
-      body: Center(
+      appBar: AppBar(title: Text('Meu App')),
+      body: Padding(
+        padding: EdgeInsets.all(20),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text(
-              'You have pushed the button this many times:',
-              style: TextStyle(color: Colors.black54, fontSize: 16),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
+          children: [
+            Header(title: 'Bem-vindo!'), // Componente Header
+            SizedBox(height: 20),
+            Text('Este é um exemplo de organização'),
+            SizedBox(height: 40),
+            CustomButton(
+              // Componente Botão
+              text: 'Clique aqui',
+              onPressed: () => print('Botão clicado!'),
             ),
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        backgroundColor: Colors.black,
-        child: const Icon(Icons.add, color: Colors.white),
-      ),
     );
   }
 }
+
+// =============== APP PRINCIPAL ===============
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: HomePage(), // Página inicial
+    );
+  }
+}
+
+void main() => runApp(MyApp());
