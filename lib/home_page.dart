@@ -1,11 +1,7 @@
-// lib/home_page.dart
-
 import 'package:flutter/material.dart';
 import 'package:flutter_app/models/finance_record.dart';
 import 'package:flutter_app/create_record_page.dart';
 import 'package:flutter_app/record_details_page.dart';
-// Unused import: 'package:flutter_app/record_details_page.dart'.
-// Try removing the import directive.dartunused_import
 import 'package:flutter_app/services/database_service.dart';
 
 class HomePage extends StatefulWidget {
@@ -16,26 +12,22 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  // Agora a lista será carregada do banco de dados
   final List<FinanceRecord> _records = [];
 
   @override
   void initState() {
     super.initState();
-    _loadRecords(); // Carrega os registros do DB quando a página é inicializada
+    _loadRecords();
   }
 
-  // --- NOVA FUNÇÃO: CARREGAR REGISTROS DO BANCO DE DADOS ---
   Future<void> _loadRecords() async {
     final loadedRecords = await DatabaseService.instance.getRecords();
     setState(() {
-      _records.clear(); // Limpa a lista atual (se houver)
-      _records.addAll(loadedRecords); // Adiciona os registros carregados do DB
+      _records.clear();
+      _records.addAll(loadedRecords);
     });
   }
-  // --- FIM DA NOVA FUNÇÃO ---
 
-  // --- MODIFICADO: SALVAR NOVO REGISTRO NO BANCO DE DADOS ---
   void _navigateToAddRecordPage() async {
     final String? newRecordName = await Navigator.push(
       context,
@@ -43,11 +35,8 @@ class _HomePageState extends State<HomePage> {
     );
 
     if (newRecordName != null && newRecordName.isNotEmpty) {
-      // Cria o FinanceRecord (sem ID ainda)
       final newRecord = FinanceRecord(name: newRecordName);
-      // Insere no banco de dados e espera pelo ID gerado
       final int id = await DatabaseService.instance.insertRecord(newRecord);
-      // Atribui o ID gerado pelo DB ao objeto em memória
       newRecord.id = id;
 
       setState(() {
@@ -55,21 +44,50 @@ class _HomePageState extends State<HomePage> {
       });
     }
   }
-  // --- FIM DA MODIFICAÇÃO ---
 
   void _navigateToRecordDetails(FinanceRecord record) async {
     await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => RecordDetailsPage(record: record),
-        //         The method 'RecordDetailsPage' isn't defined for the type '_HomePageState'.
-        // Try correcting the name to the name of an existing method, or defining a method named 'RecordDetailsPage'.dartundefined_method
+      ),
+    );
+    await _loadRecords();
+  }
+
+  Future<void> _deleteRecord(FinanceRecord recordToDelete) async {
+    final bool? confirm = await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Excluir Registro?'),
+        content: Text(
+          'Tem certeza que deseja excluir o registro "${recordToDelete.name}"? Todas as transações associadas também serão excluídas.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Excluir'),
+          ),
+        ],
       ),
     );
 
-    // Após retornar da RecordDetailsPage, recarregar a lista para garantir que
-    // qualquer mudança (totalSpent, isClosed) seja refletida.
-    await _loadRecords();
+    if (confirm == true && recordToDelete.id != null) {
+      await DatabaseService.instance.deleteRecord(recordToDelete.id!);
+
+      setState(() {
+        _records.removeWhere((record) => record.id == recordToDelete.id);
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Registro "${recordToDelete.name}" excluído!')),
+      );
+    }
   }
 
   @override
@@ -124,9 +142,21 @@ class _HomePageState extends State<HomePage> {
                         'Total Gasto: R\$ ${record.totalSpent.toStringAsFixed(2)}',
                         style: TextStyle(color: textColor.withOpacity(0.8)),
                       ),
-                      trailing: record.isClosed
-                          ? Icon(Icons.lock, color: textColor.withOpacity(0.8))
-                          : null,
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (record.isClosed)
+                            Icon(Icons.lock, color: textColor.withOpacity(0.8)),
+                          IconButton(
+                            icon: const Icon(
+                              Icons.delete_forever,
+                              color: Colors.red,
+                            ),
+                            tooltip: 'Excluir Registro',
+                            onPressed: () => _deleteRecord(record),
+                          ),
+                        ],
+                      ),
                       onTap: () {
                         _navigateToRecordDetails(record);
                       },

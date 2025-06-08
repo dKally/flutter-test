@@ -1,9 +1,6 @@
-// lib/services/database_service.dart
-
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
-import '/models/finance_record.dart'
-    as model; // Use um prefixo para o seu modelo Transaction
+import '/models/finance_record.dart' as model;
 
 class DatabaseService {
   static Database? _database;
@@ -55,10 +52,7 @@ class DatabaseService {
     print('Upgrade do banco de dados da versão $oldVersion para $newVersion');
   }
 
-  // --- Métodos CRUD para FinanceRecord ---
-
   Future<int> insertRecord(model.FinanceRecord record) async {
-    // Use model.FinanceRecord
     final db = await database;
     return await db.insert(
       'records',
@@ -68,18 +62,15 @@ class DatabaseService {
   }
 
   Future<List<model.FinanceRecord>> getRecords() async {
-    // Use model.FinanceRecord
     final db = await database;
     final List<Map<String, dynamic>> maps = await db.query('records');
 
     List<model.FinanceRecord> records = List.generate(maps.length, (i) {
-      // Use model.FinanceRecord
       return model.FinanceRecord.fromMap(maps[i]);
     });
 
     for (var record in records) {
       if (record.id != null) {
-        // Garante que o ID não é nulo antes de buscar transações
         record.transactions = await getTransactionsForRecord(record.id!);
       }
     }
@@ -87,7 +78,6 @@ class DatabaseService {
   }
 
   Future<int> updateRecord(model.FinanceRecord record) async {
-    // Use model.FinanceRecord
     final db = await database;
     return await db.update(
       'records',
@@ -102,10 +92,7 @@ class DatabaseService {
     return await db.delete('records', where: 'id = ?', whereArgs: [id]);
   }
 
-  // --- Métodos CRUD para Transaction ---
-
   Future<int> insertTransaction(model.Transaction transaction) async {
-    // Use model.Transaction
     final db = await database;
     return await db.insert(
       'transactions',
@@ -115,7 +102,6 @@ class DatabaseService {
   }
 
   Future<List<model.Transaction>> getTransactionsForRecord(
-    // Use model.Transaction
     int financeRecordId,
   ) async {
     final db = await database;
@@ -132,7 +118,6 @@ class DatabaseService {
   }
 
   Future<int> updateTransaction(model.Transaction transaction) async {
-    // Use model.Transaction
     final db = await database;
     return await db.update(
       'transactions',

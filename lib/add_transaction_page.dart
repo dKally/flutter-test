@@ -1,17 +1,10 @@
-// lib/add_transaction_page.dart
-
 import 'package:flutter/material.dart';
-import '/models/finance_record.dart'; // Importa nosso modelo de dados
+import '/models/finance_record.dart';
 
 class AddTransactionPage extends StatefulWidget {
-  // A página de adicionar transação precisa saber a qual registro ela pertence.
-  // Por isso, passamos o financeRecordId no construtor.
   final int financeRecordId;
 
-  const AddTransactionPage({
-    super.key,
-    required this.financeRecordId,
-  }); // Adicione este parâmetro
+  const AddTransactionPage({super.key, required this.financeRecordId});
 
   @override
   State<AddTransactionPage> createState() => _AddTransactionPageState();
@@ -87,8 +80,7 @@ class _AddTransactionPageState extends State<AddTransactionPage> {
                     final String description = _descriptionController.text;
 
                     final newTransaction = Transaction(
-                      financeRecordId: widget
-                          .financeRecordId, // AGORA PASSAMOS O ID DO REGISTRO PAI
+                      financeRecordId: widget.financeRecordId,
                       amount: amount,
                       description: description,
                       date: DateTime.now(),

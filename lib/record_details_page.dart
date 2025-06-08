@@ -1,9 +1,9 @@
 // lib/record_details_page.dart
 
 import 'package:flutter/material.dart';
-import 'package:flutter_app/models/finance_record.dart'; // Ajuste o 'flutter_app' para o nome real do seu projeto se for diferente
-import 'package:flutter_app/add_transaction_page.dart'; // Ajuste o 'flutter_app' para o nome real do seu projeto se for diferente
-import 'package:flutter_app/services/database_service.dart'; // Ajuste o 'flutter_app' para o nome real do seu projeto se for diferente
+import 'package:flutter_app/models/finance_record.dart';
+import 'package:flutter_app/add_transaction_page.dart';
+import 'package:flutter_app/services/database_service.dart';
 
 class RecordDetailsPage extends StatefulWidget {
   final FinanceRecord record;
@@ -15,10 +15,7 @@ class RecordDetailsPage extends StatefulWidget {
 }
 
 class _RecordDetailsPageState extends State<RecordDetailsPage> {
-  // --- FUNÇÃO PARA NAVEGAR PARA A PÁGINA DE ADICIONAR TRANSAÇÃO E PERSISTIR ---
   void _navigateToAddTransactionPage() async {
-    // É CRUCIAL garantir que widget.record.id não seja nulo aqui.
-    // Isso será garantido na HomePage ao inserir o FinanceRecord.
     if (widget.record.id == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -33,24 +30,18 @@ class _RecordDetailsPageState extends State<RecordDetailsPage> {
     final Transaction? newTransaction = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => AddTransactionPage(
-          financeRecordId: widget.record.id!,
-        ), // Passa o ID do registro pai
+        builder: (context) =>
+            AddTransactionPage(financeRecordId: widget.record.id!),
       ),
     );
 
     if (newTransaction != null) {
-      // 1. Adiciona a transação à lista em memória
       setState(() {
         widget.record.transactions.add(newTransaction);
         widget.record.totalSpent += newTransaction.amount;
       });
 
-      // 2. Salva a nova transação no banco de dados
-      // O 'id' da transação será preenchido após a inserção.
       await DatabaseService.instance.insertTransaction(newTransaction);
-
-      // 3. Atualiza o FinanceRecord pai no banco de dados (totalSpent)
       await DatabaseService.instance.updateRecord(widget.record);
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -58,15 +49,12 @@ class _RecordDetailsPageState extends State<RecordDetailsPage> {
       );
     }
   }
-  // --- FIM DA FUNÇÃO ---
 
-  // --- FUNÇÃO PARA FECHAR/REABRIR O REGISTRO E PERSISTIR ---
   void _toggleCloseRecord() async {
     setState(() {
-      widget.record.isClosed = !widget.record.isClosed; // Inverte o status
+      widget.record.isClosed = !widget.record.isClosed;
     });
 
-    // 1. Atualiza o FinanceRecord no banco de dados (isClosed)
     await DatabaseService.instance.updateRecord(widget.record);
 
     ScaffoldMessenger.of(context).showSnackBar(
@@ -77,7 +65,50 @@ class _RecordDetailsPageState extends State<RecordDetailsPage> {
       ),
     );
   }
-  // --- FIM DA FUNÇÃO ---
+
+  Future<void> _deleteTransaction(Transaction transactionToDelete) async {
+    final bool? confirm = await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Excluir Transação?'),
+        content: Text(
+          'Tem certeza que deseja excluir o gasto de R\$ ${transactionToDelete.amount.toStringAsFixed(2)} - "${transactionToDelete.description}"?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Excluir'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true && transactionToDelete.id != null) {
+      await DatabaseService.instance.deleteTransaction(transactionToDelete.id!);
+
+      setState(() {
+        widget.record.transactions.removeWhere(
+          (t) => t.id == transactionToDelete.id,
+        );
+        widget.record.totalSpent -= transactionToDelete.amount;
+      });
+
+      await DatabaseService.instance.updateRecord(widget.record);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Transação "${transactionToDelete.description}" excluída!',
+          ),
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -137,12 +168,26 @@ class _RecordDetailsPageState extends State<RecordDetailsPage> {
                             subtitle: Text(
                               'Data: ${transaction.date.day}/${transaction.date.month}/${transaction.date.year}',
                             ),
-                            trailing: Text(
-                              'R\$ ${transaction.amount.toStringAsFixed(2)}',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  'R\$ ${transaction.amount.toStringAsFixed(2)}',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.delete_forever,
+                                    color: Colors.red,
+                                  ),
+                                  tooltip: 'Excluir Transação',
+                                  onPressed: () =>
+                                      _deleteTransaction(transaction),
+                                ),
+                              ],
                             ),
                           ),
                         );
