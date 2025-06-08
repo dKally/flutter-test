@@ -1,8 +1,12 @@
 // lib/home_page.dart
 
 import 'package:flutter/material.dart';
-import 'models/finance_record.dart'; // Importa nosso modelo de dados
-import 'create_record_page.dart'; // Importa a página de criação
+import 'package:flutter_app/models/finance_record.dart';
+import 'package:flutter_app/create_record_page.dart';
+import 'package:flutter_app/record_details_page.dart';
+// Unused import: 'package:flutter_app/record_details_page.dart'.
+// Try removing the import directive.dartunused_import
+import 'package:flutter_app/services/database_service.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -12,30 +16,60 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  // Agora nossa lista guarda objetos FinanceRecord
-  final List<FinanceRecord> _records =
-      []; // Usamos '_' para indicar que é uma variável privada
+  // Agora a lista será carregada do banco de dados
+  final List<FinanceRecord> _records = [];
 
-  // Função assíncrona para lidar com a navegação e o retorno de dados
+  @override
+  void initState() {
+    super.initState();
+    _loadRecords(); // Carrega os registros do DB quando a página é inicializada
+  }
+
+  // --- NOVA FUNÇÃO: CARREGAR REGISTROS DO BANCO DE DADOS ---
+  Future<void> _loadRecords() async {
+    final loadedRecords = await DatabaseService.instance.getRecords();
+    setState(() {
+      _records.clear(); // Limpa a lista atual (se houver)
+      _records.addAll(loadedRecords); // Adiciona os registros carregados do DB
+    });
+  }
+  // --- FIM DA NOVA FUNÇÃO ---
+
+  // --- MODIFICADO: SALVAR NOVO REGISTRO NO BANCO DE DADOS ---
   void _navigateToAddRecordPage() async {
-    // Navigator.push() retorna um Future que será completado com o resultado
-    // quando a página popped (removida da pilha de navegação).
     final String? newRecordName = await Navigator.push(
       context,
+      MaterialPageRoute(builder: (context) => const CreateRecordPage()),
+    );
+
+    if (newRecordName != null && newRecordName.isNotEmpty) {
+      // Cria o FinanceRecord (sem ID ainda)
+      final newRecord = FinanceRecord(name: newRecordName);
+      // Insere no banco de dados e espera pelo ID gerado
+      final int id = await DatabaseService.instance.insertRecord(newRecord);
+      // Atribui o ID gerado pelo DB ao objeto em memória
+      newRecord.id = id;
+
+      setState(() {
+        _records.add(newRecord);
+      });
+    }
+  }
+  // --- FIM DA MODIFICAÇÃO ---
+
+  void _navigateToRecordDetails(FinanceRecord record) async {
+    await Navigator.push(
+      context,
       MaterialPageRoute(
-        builder: (context) =>
-            const CreateRecordPage(), // Vai para a CreateRecordPage
+        builder: (context) => RecordDetailsPage(record: record),
+        //         The method 'RecordDetailsPage' isn't defined for the type '_HomePageState'.
+        // Try correcting the name to the name of an existing method, or defining a method named 'RecordDetailsPage'.dartundefined_method
       ),
     );
 
-    // Verifica se um nome foi realmente retornado (ou seja, o usuário salvou)
-    if (newRecordName != null && newRecordName.isNotEmpty) {
-      // Usa setState para reconstruir o widget e exibir o novo registro
-      setState(() {
-        // Cria uma nova instância de FinanceRecord com o nome retornado
-        _records.add(FinanceRecord(name: newRecordName));
-      });
-    }
+    // Após retornar da RecordDetailsPage, recarregar a lista para garantir que
+    // qualquer mudança (totalSpent, isClosed) seja refletida.
+    await _loadRecords();
   }
 
   @override
@@ -46,8 +80,6 @@ class _HomePageState extends State<HomePage> {
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
       body: Center(
-        // Agora, se a lista estiver vazia, ainda mostramos a mensagem
-        // Caso contrário, exibimos a lista de FinanceRecord
         child: _records.isEmpty
             ? const Text(
                 'Nenhum registro ainda. Clique em "+" para adicionar um novo.',
@@ -57,26 +89,46 @@ class _HomePageState extends State<HomePage> {
             : ListView.builder(
                 itemCount: _records.length,
                 itemBuilder: (context, index) {
-                  final record = _records[index]; // Pega o objeto FinanceRecord
+                  final record = _records[index];
+
+                  Color cardColor = record.isClosed
+                      ? Colors.grey[300]!
+                      : Colors.white;
+                  Color textColor = record.isClosed
+                      ? Colors.grey[600]!
+                      : Colors.black87;
+                  FontWeight fontWeight = record.isClosed
+                      ? FontWeight.normal
+                      : FontWeight.bold;
+                  TextDecoration textDecoration = record.isClosed
+                      ? TextDecoration.lineThrough
+                      : TextDecoration.none;
 
                   return Card(
-                    // Usamos Card para dar um visual mais agradável
                     margin: const EdgeInsets.symmetric(
                       horizontal: 16,
                       vertical: 8,
                     ),
+                    color: cardColor,
+                    elevation: record.isClosed ? 1 : 4,
                     child: ListTile(
                       title: Text(
-                        record.name, // Exibe o nome do registro
-                        style: const TextStyle(fontWeight: FontWeight.bold),
+                        record.name,
+                        style: TextStyle(
+                          fontWeight: fontWeight,
+                          color: textColor,
+                          decoration: textDecoration,
+                        ),
                       ),
                       subtitle: Text(
-                        'Total Gasto: R\$ ${record.totalSpent.toStringAsFixed(2)}', // Mostra o total gasto
+                        'Total Gasto: R\$ ${record.totalSpent.toStringAsFixed(2)}',
+                        style: TextStyle(color: textColor.withOpacity(0.8)),
                       ),
-                      // trailing: Icon(record.isClosed ? Icons.lock : Icons.lock_open), // Exemplo de ícone
+                      trailing: record.isClosed
+                          ? Icon(Icons.lock, color: textColor.withOpacity(0.8))
+                          : null,
                       onTap: () {
-                        // TODO: Implementar navegação para a página de detalhes do registro
-                        print('Clicou no registro: ${record.name}');
+                        _navigateToRecordDetails(record);
                       },
                     ),
                   );
@@ -84,7 +136,7 @@ class _HomePageState extends State<HomePage> {
               ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _navigateToAddRecordPage, // Chama nossa função de navegação
+        onPressed: _navigateToAddRecordPage,
         tooltip: 'Adicionar Novo Registro',
         child: const Icon(Icons.add),
       ),
